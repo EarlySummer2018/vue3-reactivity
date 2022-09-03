@@ -1,4 +1,11 @@
-import { assign, isObject } from "@vue/shared";
+import {
+  assign,
+  hasChanged,
+  hasOwn,
+  isArray,
+  isIntegerKey,
+  isObject,
+} from "@vue/shared";
 import { reactive, readonly } from "./reactive";
 
 /**
@@ -16,12 +23,12 @@ const createGetter = (
    * key 建
    * receiver 代理对象
    */
-  return function getter(target: object, key: string, receiver: object) {
+  return function get(target: object, key: string, receiver: object) {
     const res = Reflect.get(target, key, receiver);
     if (isShallow) return res;
     // 如果不是只读就进行依赖收集
     if (!isReadonly) {
-      console.log("收集依赖");
+      // console.log("收集依赖");
     }
     if (isObject(res)) return isReadonly ? readonly(res) : reactive(res);
     return res;
@@ -53,15 +60,26 @@ const createSetter = (
    * value 新值
    * receiver 代理的对象
    */
-  return function setter(
+  // 针对数组而言，如果调用 push 方法，就会触发两次 set，一次为数组新增了一项，一次改变数组的长度，
+  // 但是再为数组新增一项的时候就同时修改了数组的长度了，所以第二次调用是没有意义的
+  return function set(
     target: object,
     key: string,
     value: any,
     receiver: object
   ) {
+    const oldVal = (target as any)[key];
+    const hadKey =
+      isArray(target) && isIntegerKey(key)
+        ? Number(key) < target.length
+        : hasOwn(target, key);
     const res = Reflect.set(target, key, value, receiver);
-    console.log("设置值");
-
+    if (!hadKey) {
+      console.log("新增");
+    } else if (hasChanged(oldVal, value)) {
+      console.log("修改");
+    }
+    // console.log("设置值", target, key, value);
     return res;
   };
 };

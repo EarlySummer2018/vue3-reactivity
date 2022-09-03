@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-</head>
-<body>
+  </head>
+  <body>
     <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
     <script>
-        const {reactive, shallowReactive, readonly, shallowReadonly} = VueReactivity
-        const obj = {a:1,address:{city:'城市'}}
-        const name = reactive(obj)
-        // name.a = 6
-        console.log(name.address.name);
+      const { reactive, shallowReactive, readonly, shallowReadonly } =
+        VueReactivity;
+      const obj = { a: 1, address: { city: "城市" }, arr: [1, 2, 3, 4, 5] };
+      const name = reactive(obj);
+      name.arr.push(100);
     </script>
-</body>
+  </body>
 </html>

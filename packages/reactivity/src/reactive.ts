@@ -6,21 +6,21 @@ import {
   shallowReadonlyHandler,
 } from "./baseHandler";
 
-const reactive = (target: object) => {
+function reactive(target: object) {
   return createReactiveObject(target, false, mutableHandler);
-};
+}
 
-const shallowReactive = (target: object) => {
+function shallowReactive(target: object) {
   return createReactiveObject(target, false, shallowMutableHandler);
-};
+}
 
-const readonly = (target: object) => {
+function readonly(target: object) {
   return createReactiveObject(target, true, readonlyHandler);
-};
+}
 
-const shallowReadonly = (target: object) => {
+function shallowReadonly(target: object) {
   return createReactiveObject(target, true, shallowReadonlyHandler);
-};
+}
 
 /**
  * weakMap 和 Map 的区别:

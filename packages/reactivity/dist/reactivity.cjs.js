@@ -2,11 +2,17 @@ var VueReactivity = (function (exports) {
   'use strict';
 
   // 判断是不是对象
-  const isObject = (data) => {
-      return typeof data === "object" && data !== null;
-  };
+  const isObject = (data) => typeof data === "object" && data !== null;
+  // 判断是否改变
+  const hasChanged = (oldValue, newValue) => !Object.is(oldValue, newValue);
+  // 判断是否是数组
+  const isArray = Array.isArray;
   // 对象合并
   const assign = Object.assign;
+  // 判断是不是整数字符串
+  const isIntegerKey = (key) => parseInt(key) + "" === key;
+  // 判断是不是对象本身的属性
+  const hasOwn = (target, key) => Object.prototype.hasOwnProperty.call(target, key);
 
   /**
    *
@@ -20,14 +26,10 @@ var VueReactivity = (function (exports) {
        * key 建
        * receiver 代理对象
        */
-      return function getter(target, key, receiver) {
+      return function get(target, key, receiver) {
           const res = Reflect.get(target, key, receiver);
           if (isShallow)
               return res;
-          // 如果不是只读就进行依赖收集
-          if (!isReadonly) {
-              console.log("收集依赖");
-          }
           if (isObject(res))
               return isReadonly ? readonly(res) : reactive(res);
           return res;
@@ -54,9 +56,21 @@ var VueReactivity = (function (exports) {
        * value 新值
        * receiver 代理的对象
        */
-      return function setter(target, key, value, receiver) {
+      // 针对数组而言，如果调用 push 方法，就会触发两次 set，一次为数组新增了一项，一次改变数组的长度，
+      // 但是再为数组新增一项的时候就同时修改了数组的长度了，所以第二次调用是没有意义的
+      return function set(target, key, value, receiver) {
+          const oldVal = target[key];
+          const hadKey = isArray(target) && isIntegerKey(key)
+              ? Number(key) < target.length
+              : hasOwn(target, key);
           const res = Reflect.set(target, key, value, receiver);
-          console.log("设置值");
+          if (!hadKey) {
+              console.log("新增");
+          }
+          else if (hasChanged(oldVal, value)) {
+              console.log("修改");
+          }
+          // console.log("设置值", target, key, value);
           return res;
       };
   };
@@ -80,18 +94,18 @@ var VueReactivity = (function (exports) {
   const readonlyHandler = assign({ get: readonlyGet }, readonlySet);
   const shallowReadonlyHandler = assign({ get: shallowReadonlyGet }, readonlySet);
 
-  const reactive = (target) => {
+  function reactive(target) {
       return createReactiveObject(target, false, mutableHandler);
-  };
-  const shallowReactive = (target) => {
+  }
+  function shallowReactive(target) {
       return createReactiveObject(target, false, shallowMutableHandler);
-  };
-  const readonly = (target) => {
+  }
+  function readonly(target) {
       return createReactiveObject(target, true, readonlyHandler);
-  };
-  const shallowReadonly = (target) => {
+  }
+  function shallowReadonly(target) {
       return createReactiveObject(target, true, shallowReadonlyHandler);
-  };
+  }
   /**
    * weakMap 和 Map 的区别:
    * 1、Map 具有强引用，当我们将引用类型的 key 赋值为 null 时，它不会被垃圾回收，而是继续使用，所以会造成内存泄漏，
