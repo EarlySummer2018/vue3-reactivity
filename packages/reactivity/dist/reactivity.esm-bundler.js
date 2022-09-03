@@ -14,6 +14,83 @@ var VueReactivity = (function (exports) {
   // 判断是不是对象本身的属性
   const hasOwn = (target, key) => Object.prototype.hasOwnProperty.call(target, key);
 
+  function effect(fn, options = {}) {
+      const effect = createReactiveEffect(fn, options);
+      if (!options.lazy) {
+          effect();
+      }
+      return effect;
+  }
+  const effectStack = [];
+  let activeEffect;
+  function createReactiveEffect(fn, options) {
+      //   debugger;
+      const effect = function reactiveEffect() {
+          try {
+              effectStack.push(effect);
+              activeEffect = effect;
+              return fn();
+          }
+          finally {
+              effectStack.pop();
+              activeEffect = effectStack[effectStack.length - 1];
+          }
+      };
+      effect._isEffect = true;
+      effect.options = options;
+      effect.deps = [];
+      return effect;
+  }
+  const targetMap = new WeakMap();
+  const track = (target, type, key) => {
+      if (activeEffect === undefined) {
+          return;
+      }
+      let depsMap = targetMap.get(target);
+      if (!depsMap) {
+          targetMap.set(target, (depsMap = new Map()));
+      }
+      let dep = depsMap.get(key);
+      if (!dep) {
+          depsMap.set(key, (dep = new Set()));
+      }
+      if (!dep.has(activeEffect)) {
+          dep.add(activeEffect);
+      }
+  };
+  const trigger = (target, type, key, newVal, oldVal) => {
+      const depsMap = targetMap.get(target);
+      if (!depsMap) {
+          return;
+      }
+      const effectSet = new Set();
+      const add = (effects) => {
+          if (effects) {
+              effects.forEach((effect) => {
+                  effectSet.add(effect);
+              });
+          }
+      };
+      if (key === "length" && isArray(target)) {
+          depsMap.forEach((dep, key) => {
+              console.log("depKey", dep, key);
+              if (key > newVal || key === "length") {
+                  add(dep);
+              }
+          });
+      }
+      else {
+          add(depsMap.get(key));
+          switch (type) {
+              case "add":
+                  if (isArray(target) && isIntegerKey(key)) {
+                      add(depsMap.get("length"));
+                  }
+          }
+      }
+      effectSet.forEach((effect) => effect());
+  };
+
   /**
    *
    * @param isReadonly 是不是仅读的
@@ -30,6 +107,11 @@ var VueReactivity = (function (exports) {
           const res = Reflect.get(target, key, receiver);
           if (isShallow)
               return res;
+          // 如果不是只读就进行依赖收集
+          if (!isReadonly) {
+              // console.log("收集依赖");
+              track(target, "get", key);
+          }
           if (isObject(res))
               return isReadonly ? readonly(res) : reactive(res);
           return res;
@@ -66,9 +148,11 @@ var VueReactivity = (function (exports) {
           const res = Reflect.set(target, key, value, receiver);
           if (!hadKey) {
               console.log("新增");
+              trigger(target, "add", key, value);
           }
           else if (hasChanged(oldVal, value)) {
               console.log("修改");
+              trigger(target, "set", key, value);
           }
           // console.log("设置值", target, key, value);
           return res;
@@ -142,6 +226,7 @@ var VueReactivity = (function (exports) {
       return proxy;
   };
 
+  exports.effect = effect;
   exports.reactive = reactive;
   exports.readonly = readonly;
   exports.shallowReactive = shallowReactive;

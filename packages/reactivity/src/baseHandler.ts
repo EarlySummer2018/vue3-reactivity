@@ -6,6 +6,7 @@ import {
   isIntegerKey,
   isObject,
 } from "@vue/shared";
+import { track, trigger } from "./effect";
 import { reactive, readonly } from "./reactive";
 
 /**
@@ -29,6 +30,7 @@ const createGetter = (
     // 如果不是只读就进行依赖收集
     if (!isReadonly) {
       // console.log("收集依赖");
+      track(target, "get", key);
     }
     if (isObject(res)) return isReadonly ? readonly(res) : reactive(res);
     return res;
@@ -76,8 +78,10 @@ const createSetter = (
     const res = Reflect.set(target, key, value, receiver);
     if (!hadKey) {
       console.log("新增");
+      trigger(target, "add", key, value);
     } else if (hasChanged(oldVal, value)) {
       console.log("修改");
+      trigger(target, "set", key, value, oldVal);
     }
     // console.log("设置值", target, key, value);
     return res;
